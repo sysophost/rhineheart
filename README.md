@@ -1,2 +1,2 @@
 # neo-tool
-Modular rewrite of https://github.com/sysophost/neo-scripts
+Modular rewrite of [neo-scripts](https://github.com/sysophost/neo-scripts)
