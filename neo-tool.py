@@ -39,16 +39,9 @@ if not (ARGS.markobjects or ARGS.epochconvert or ARGS.findold):
 
 verbose_print = print if ARGS.verbose else lambda *a, **k: None
 
-def main():
-
-    # check input file exists
-
-    # try catch around neo calls
-
-
-    # Construct DB connection 
-    neo_url = f'http://{ARGS.dbhost}:{ARGS.dbport}/db/data/transaction/commit'
-    credString = f'{ARGS.username}:{ARGS.password}'
+def db_init(dbhost: str, dbport: int, username: str, password: str):
+    neo_url = f'http://{dbhost}:{dbport}/db/data/transaction/commit'
+    credString = f'{username}:{password}'
     base64auth = base64.b64encode(credString.encode()).decode('ascii')
 
     headers = {
@@ -69,9 +62,16 @@ def main():
         print(f'[!] {err}')
         sys.exit()
     else:
-        verbose_print(f'[i] Database connection to {neo_url} appears to be working')
+        verbose_print(f'[i] Database connection to {neo_url} appears to be working')    
+        return conn
+
+
+def main():
+
+    # check input file exists        
 
     if ARGS.markobjects:
+        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)
         input_objects = ['aaa', 'bbb', 'ADMINVV@DBA.CORP']
        
         print(f'[i] Performing query with {len(input_objects)} object(s)') 
@@ -85,6 +85,7 @@ def main():
         return
 
     if ARGS.findold:
+        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)
         resp = findold.find_old(conn, ARGS.days, ARGS.findold)
         matched_objects = resp.json()['results'][0]['data']
         print(f'[i] Query returned {len(matched_objects)} object(s)')
