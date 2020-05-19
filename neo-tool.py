@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 
 import requests
 
-from modules import db, epochconvert, findold, markobjects, output, queries
+from modules import (db, epochconvert, findold, input, markobjects, output,
+                     queries)
 
 PARSER = argparse.ArgumentParser()
 
@@ -55,25 +56,37 @@ def db_init(dbhost: str, dbport: int, username: str, password: str):
     try:
         verbose_print(f'[i] Testing database connection to {neo_url}')
         db.test_connection(conn)
+        verbose_print(f'[i] Database connection to {neo_url} appears to be working')    
+        return conn
     except requests.exceptions.HTTPError as err:
         print(f'[!] {err}')
         sys.exit()
     except requests.exceptions.ConnectionError as err:
         print(f'[!] {err}')
         sys.exit()
-    else:
-        verbose_print(f'[i] Database connection to {neo_url} appears to be working')    
-        return conn
-
 
 def main():
+    if ARGS.inputfile: 
+        try:
+            with open(ARGS.inputfile, 'r') as objects_file:
+                if input.is_csv(objects_file, ARGS.delim):
+                    CSV_READER = csv.reader(objects_file, delimiter=ARGS.delim)
+                    HEADERS = next(CSV_READER)
+                    LINES = list(CSV_READER)
+                    input_objects = LINES
+                else:
+                    input_objects = objects_file.read().splitlines()
+                
+                objects_file.close()
+                verbose_print(f'[i] Found {len(input_objects)} object(s) in {ARGS.inputfile}')
 
-    # check input file exists        
+        except (OSError, IOError) as err:
+            print(err)
+            print(f'[!] {ARGS.inputfile} not found')
+            sys.exit(1)
 
     if ARGS.markobjects:
-        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)
-        input_objects = ['aaa', 'bbb', 'ADMINVV@DBA.CORP']
-       
+        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)       
         print(f'[i] Performing query with {len(input_objects)} object(s)') 
         resp = markobjects.mark_objects(conn, input_objects, ARGS.markobjects)
         matched_objects = resp.json()['results'][0]['data']
@@ -82,6 +95,7 @@ def main():
             verbose_print(f"{matched_object['row'][0]['name']}\r\n\tOwned:{matched_object['row'][0]['owned']}\r\n\tHighvalue:{matched_object['row'][0]['highvalue']}\r\n")
 
     if ARGS.epochconvert:
+        print(LINES)
         return
 
     if ARGS.findold:
