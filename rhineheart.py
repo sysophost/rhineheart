@@ -90,18 +90,23 @@ def main():
             for col in ARGS.col:
                 converted = epochconvert.epoch_convert(input_objects, col, date_format)
 
-            print(f'{ARGS.outdelim}'.join(map(str, HEADERS)))
-            for row in converted:
-                print(f'{ARGS.outdelim}'.join(map(str, row)))
-
-            if ARGS.outputfile:
-                output.write_output(ARGS.outputfile, HEADERS, converted, ARGS.outdelim)
-                print(f"[i] Output file written to {ARGS.outputfile}")
-
         except ValueError as err:
             print(f'[!] Input file is incorrectly formatted - {err}')
         except IndexError as err:
             print(f'[!] Invalid column index specified - {err}')
+        else:
+            try:
+                print(f'{ARGS.outdelim}'.join(map(str, HEADERS)))
+                for row in converted:
+                    print(f'{ARGS.outdelim}'.join(map(str, row)))
+
+                if ARGS.outputfile:
+                    output.write_output(ARGS.outputfile, HEADERS, converted, ARGS.outdelim)
+                    print(f"[i] Output file written to {ARGS.outputfile}")
+
+            except Exception as err:
+                print(f'[!] {err}')
+                sys.exit(1)
 
     if ARGS.findold:
         try:
