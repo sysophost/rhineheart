@@ -1,9 +1,4 @@
-def construct_find_date_query(flag: str, days: int):
-    if flag == 'logon':
-        field = 'lastlogontimestamp'
-    elif flag == 'password':
-        field = 'pwdlastset'
-
+def construct_find_date_query(field: str, days: int):
     query = {
         'statements': [{'statement': f'MATCH (u:User) WHERE u.{field} <= (datetime().epochseconds - ({days} * 86400)) and NOT u.{field} IN [-1.0, 0.0] RETURN u ORDER BY u.name ASC'}]
     }
