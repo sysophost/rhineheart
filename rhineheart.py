@@ -1,13 +1,10 @@
 import argparse
-import base64
 import csv
 import sys
 from datetime import datetime, timezone
 
-import requests
-
-from modules import (db, epochconvert, findold, input, markobjects, output,
-                     queries)
+from modules import (db, epochconvert, findold, formatting, input, markobjects,
+                     output, queries)
 
 PARSER = argparse.ArgumentParser()
 
@@ -27,8 +24,9 @@ PARSER.add_argument('--days', '-d', type=int, required='--findold' in sys.argv o
 # Input/output formatting args
 PARSER.add_argument('--inputfile', '-if', type=str, required='--markobjects' in sys.argv or '-mo' in sys.argv or '--epochconvert' in sys.argv or '-ec' in sys.argv, help='Path to input file')
 PARSER.add_argument('--outputfile', '-of', type=str, default='results.csv', help='Path to output file (default: %(default)s)')
-PARSER.add_argument('--delim', type=str, default=',', help='Output file delimiter (default: %(default)s)')
-PARSER.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort', 'utc'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
+PARSER.add_argument('--indelim', '-id', type=str, default=',', help='Output file delimiter (default: %(default)s)')
+PARSER.add_argument('--outdelim', '-od', type=str, default=',', help='Output file delimiter (default: %(default)s)')
+PARSER.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
 
 PARSER.add_argument('--timeout', '-t', type=int, default=30, help='HTTP request timeout')
 PARSER.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity')
@@ -40,88 +38,94 @@ if not (ARGS.markobjects or ARGS.epochconvert or ARGS.findold):
 
 verbose_print = print if ARGS.verbose else lambda *a, **k: None
 
-def db_init(dbhost: str, dbport: int, username: str, password: str):
-    neo_url = f'http://{dbhost}:{dbport}/db/data/transaction/commit'
-    credString = f'{username}:{password}'
-    base64auth = base64.b64encode(credString.encode()).decode('ascii')
-
-    headers = {
-        'Authorization': f'Basic {base64auth}',
-        'Content-Type': 'application/json'
-    }
-
-    conn = db.construct_connection(neo_url, headers, ARGS.timeout)
-    
-    # Test DB Connection
-    try:
-        verbose_print(f'[i] Testing database connection to {neo_url}')
-        db.test_connection(conn)
-        verbose_print(f'[i] Database connection to {neo_url} appears to be working')    
-        return conn
-    except requests.exceptions.HTTPError as err:
-        print(f'[!] {err}')
-        sys.exit()
-    except requests.exceptions.ConnectionError as err:
-        print(f'[!] {err}')
-        sys.exit()
 
 def main():
-    if ARGS.inputfile: 
+    date_format = formatting.format_date(ARGS.dateformat)
+
+    if ARGS.inputfile:
         try:
             with open(ARGS.inputfile, 'r') as objects_file:
-                if input.is_csv(objects_file, ARGS.delim):
-                    CSV_READER = csv.reader(objects_file, delimiter=ARGS.delim)
-                    HEADERS = next(CSV_READER)
-                    LINES = list(CSV_READER)
-                    input_objects = LINES
+                if input.is_csv(objects_file, ARGS.indelim):
+                    csv_reader = csv.reader(objects_file, delimiter=ARGS.indelim)
+                    HEADERS = next(csv_reader)
+                    input_objects = list(csv_reader)
                 else:
                     input_objects = objects_file.read().splitlines()
-                
+
                 objects_file.close()
                 verbose_print(f'[i] Found {len(input_objects)} object(s) in {ARGS.inputfile}')
 
         except (OSError, IOError) as err:
-            print(err)
             print(f'[!] {ARGS.inputfile} not found')
             sys.exit(1)
 
     if ARGS.markobjects:
-        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)       
-        print(f'[i] Performing query with {len(input_objects)} object(s)') 
-        resp = markobjects.mark_objects(conn, input_objects, ARGS.markobjects)
-        matched_objects = resp.json()['results'][0]['data']
-        print(f'[i] Updated {len(matched_objects)} object(s)')
-        for matched_object in matched_objects:
-            verbose_print(f"{matched_object['row'][0]['name']}\r\n\tOwned:{matched_object['row'][0]['owned']}\r\n\tHighvalue:{matched_object['row'][0]['highvalue']}\r\n")
+        try:
+            conn = db.db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password, ARGS.timeout)
+
+            print(f'[i] Performing query with {len(input_objects)} object(s)')
+            resp = markobjects.mark_objects(conn, input_objects, ARGS.markobjects)
+            matched_objects = resp.json()['results'][0]['data']
+            print(f'[i] Updated {len(matched_objects)} object(s)')
+            for matched_object in matched_objects:
+                verbose_print(f"{matched_object['row'][0]['name']}\r\n\tOwned:{matched_object['row'][0]['owned']}\r\n\tHighvalue:{matched_object['row'][0]['highvalue']}\r\n")
+
+            if ARGS.outfile:
+                headers = ['Name', 'Owned', 'Highvalue']
+                output.write_output(ARGS.outputfile, headers, output_objects, ARGS.outdelim)
+
+        except Exception as err:
+            print(f'[!] {err}')
+            sys.exit(1)
 
     if ARGS.epochconvert:
-        print(LINES)
-        return
+        try:
+            for col in ARGS.col:
+                converted = epochconvert.epoch_convert(input_objects, col, date_format)
+
+            if ARGS.outputfile:
+                output.write_output(ARGS.outputfile, HEADERS, converted, ARGS.outdelim)
+                print(f"[i] Output file written to {ARGS.outfile}")
+
+            # TODO: do something witih output if not writing to file
+
+        except ValueError as err:
+            print(f'[!] Input file is incorrectly formatted - {err}')
+        except IndexError as err:
+            print(f'[!] Invalid column index specified - {err}')
 
     if ARGS.findold:
-        conn = db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password)
-        resp = findold.find_old(conn, ARGS.days, ARGS.findold)
-        matched_objects = resp.json()['results'][0]['data']
-        print(f'[i] Query returned {len(matched_objects)} object(s)')
+        try:
+            conn = db.db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password, ARGS.timeout)
 
-        # with open(ARGS.outfile, "w") as output_csv_file:
-        #     CSV_WRITER = csv.writer(output_csv_file)
-        #     CSV_WRITER.writerow(['Username', field, 'Delta (Days)'])
+            field = ''
+            if ARGS.findold == 'logon':
+                field = 'lastlogontimestamp'
+            elif ARGS.findold == 'password':
+                field = 'pwdlastset'
 
-        #     for matched_object in matched_objects:
-        #         epochtime = matched_object['row'][0][field]
-        #         human_time = datetime.fromtimestamp(
-        #             epochtime).strftime(date_format)
-        #         current_time = datetime.now().strftime(date_format)
-        #         delta = (datetime.strptime(current_time, date_format) -
-        #                 datetime.strptime(human_time, date_format)).days
-        #         name = matched_object['row'][0]['name']
-        #         verbose_print(name)
+            resp = findold.find_old(conn, ARGS.days, field)
+            matched_objects = resp.json()['results'][0]['data']
+            print(f'[i] Query returned {len(matched_objects)} object(s)')
+
+            # # TODO: reuse existing epoch conversion code to convert back to human readable
+            # for matched_object in matched_objects:
+            #     epochtime = matched_object['row'][0][field]
+            #     human_time = datetime.fromtimestamp(epochtime).strftime(date_format)
+            #     current_time = datetime.now().strftime(date_format)
+            #     delta = (datetime.strptime(current_time, date_format) - datetime.strptime(human_time, date_format)).days
+            #     name = matched_object['row'][0]['name']
 
         #         CSV_WRITER.writerow([name, human_time, delta])
 
         # output_csv_file.close()
         # print(f"[i] Output file written to {ARGS.outfile}")
+
+            # TODO: add output to CSV here
+
+        except Exception as err:
+            print(f'[!] {err}')
+            sys.exit(1)
 
 
 if __name__ == '__main__':
