@@ -1,9 +1,10 @@
 import argparse
 import csv
+import logging
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
-from modules import (db, epochconvert, findold, formatting, input, markobjects,
+from modules import (data, db, epochconvert, findold, formatting, markobjects,
                      output, queries)
 
 PARSER = argparse.ArgumentParser()
@@ -37,6 +38,7 @@ if not (ARGS.markobjects or ARGS.epochconvert or ARGS.findold):
     PARSER.error('--markobjects, --epochconvert, or --findold must be specified')
 
 verbose_print = print if ARGS.verbose else lambda *a, **k: None
+logging.basicConfig(format='%(message)s', level=logging.INFO, stream=sys.stderr)
 
 
 def main():
@@ -45,7 +47,7 @@ def main():
     if ARGS.inputfile:
         try:
             with open(ARGS.inputfile, 'r') as objects_file:
-                if input.is_csv(objects_file, ARGS.indelim):
+                if data.is_csv(objects_file, ARGS.indelim):
                     csv_reader = csv.reader(objects_file, delimiter=ARGS.indelim)
                     HEADERS = next(csv_reader)
                     input_objects = list(csv_reader)
@@ -53,20 +55,20 @@ def main():
                     input_objects = objects_file.read().splitlines()
 
                 objects_file.close()
-                verbose_print(f'[i] Found {len(input_objects)} object(s) in {ARGS.inputfile}')
+                logging.info(f'[i] Found {len(input_objects)} object(s) in {ARGS.inputfile}')
 
         except (OSError, IOError) as err:
-            print(f'[!] {ARGS.inputfile} not found')
+            logging.error(f'[!] {ARGS.inputfile} not found')
             sys.exit(1)
 
     if ARGS.markobjects:
         try:
             conn = db.db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password, ARGS.timeout)
 
-            print(f'[i] Performing query with {len(input_objects)} object(s)')
+            logging.info(f'[i] Performing query with {len(input_objects)} object(s)')
             resp = markobjects.mark_objects(conn, input_objects, ARGS.markobjects)
             matched_objects = resp.json()['results'][0]['data']
-            print(f'[i] Updated {len(matched_objects)} object(s)')
+            logging.info(f'[i] Updated {len(matched_objects)} object(s)')
 
             output_objects = list()
             headers = ['Name', 'Owned', 'Highvalue']
@@ -79,10 +81,10 @@ def main():
                 verbose_print(f'{ARGS.outdelim}'.join(map(str, [name, owned, highvalue])))
             if ARGS.outputfile:
                 output.write_output(ARGS.outputfile, headers, output_objects, ARGS.outdelim)
-                print(f"[i] Output file written to {ARGS.outputfile}")
+                logging.info(f"[i] Output file written to {ARGS.outputfile}")
 
         except Exception as err:
-            print(f'[!] {err}')
+            logging.error(f'[!] {err}')
             sys.exit(1)
 
     if ARGS.epochconvert:
@@ -91,9 +93,9 @@ def main():
                 converted = epochconvert.epoch_convert(input_objects, col, date_format)
 
         except ValueError as err:
-            print(f'[!] Input file is incorrectly formatted - {err}')
+            logging.error(f'[!] Input file is incorrectly formatted - {err}')
         except IndexError as err:
-            print(f'[!] Invalid column index specified - {err}')
+            logging.error(f'[!] Invalid column index specified - {err}')
         else:
             try:
                 print(f'{ARGS.outdelim}'.join(map(str, HEADERS)))
@@ -102,10 +104,10 @@ def main():
 
                 if ARGS.outputfile:
                     output.write_output(ARGS.outputfile, HEADERS, converted, ARGS.outdelim)
-                    print(f"[i] Output file written to {ARGS.outputfile}")
+                    logging.info(f"[i] Output file written to {ARGS.outputfile}")
 
             except Exception as err:
-                print(f'[!] {err}')
+                logging.error(f'[!] {err}')
                 sys.exit(1)
 
     if ARGS.findold:
@@ -120,7 +122,7 @@ def main():
 
             resp = findold.find_old(conn, ARGS.days, field)
             matched_objects = resp.json()['results'][0]['data']
-            print(f'[i] Query returned {len(matched_objects)} object(s)')
+            logging.info(f'[i] Query returned {len(matched_objects)} object(s)')
 
             output_objects = list()
             headers = ['Name', field, 'Delta (days)']
@@ -139,10 +141,10 @@ def main():
 
             if ARGS.outputfile:
                 output.write_output(ARGS.outputfile, headers, output_objects, ARGS.outdelim)
-                print(f"[i] Output file written to {ARGS.outputfile}")
+                logging.info(f"[i] Output file written to {ARGS.outputfile}")
 
         except Exception as err:
-            print(f'[!] {err}')
+            logging.error(f'[!] {err}')
             sys.exit(1)
 
 

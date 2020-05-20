@@ -1,4 +1,5 @@
 import base64
+import logging
 
 from requests import sessions
 
@@ -17,9 +18,9 @@ def db_init(dbhost: str, dbport: int, username: str, password: str, timeout: int
 
     # Test DB Connection
     try:
-        print(f'[i] Testing database connection to {neo_url}')
+        logging.info(f'[i] Testing database connection to {neo_url}')
         test_connection(conn)
-        print(f'[i] Database connection to {neo_url} appears to be working')
+        logging.info(f'[i] Database connection to {neo_url} appears to be working')
         return conn
     except Exception as err:
         raise err
