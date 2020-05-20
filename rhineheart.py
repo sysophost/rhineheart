@@ -23,7 +23,7 @@ PARSER.add_argument('--days', '-d', type=int, required='--findold' in sys.argv o
 
 # Input/output formatting args
 PARSER.add_argument('--inputfile', '-if', type=str, required='--markobjects' in sys.argv or '-mo' in sys.argv or '--epochconvert' in sys.argv or '-ec' in sys.argv, help='Path to input file')
-PARSER.add_argument('--outputfile', '-of', type=str, default='results.csv', help='Path to output file (default: %(default)s)')
+PARSER.add_argument('--outputfile', '-of', type=str, help='Path to output file')
 PARSER.add_argument('--indelim', '-id', type=str, default=',', help='Output file delimiter (default: %(default)s)')
 PARSER.add_argument('--outdelim', '-od', type=str, default=',', help='Output file delimiter (default: %(default)s)')
 PARSER.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
@@ -67,12 +67,19 @@ def main():
             resp = markobjects.mark_objects(conn, input_objects, ARGS.markobjects)
             matched_objects = resp.json()['results'][0]['data']
             print(f'[i] Updated {len(matched_objects)} object(s)')
-            for matched_object in matched_objects:
-                verbose_print(f"{matched_object['row'][0]['name']}\r\n\tOwned:{matched_object['row'][0]['owned']}\r\n\tHighvalue:{matched_object['row'][0]['highvalue']}\r\n")
 
-            if ARGS.outfile:
-                headers = ['Name', 'Owned', 'Highvalue']
+            output_objects = list()
+            headers = ['Name', 'Owned', 'Highvalue']
+            verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
+            for matched_object in matched_objects:
+                name = matched_object['row'][0]['name']
+                owned = matched_object['row'][0]['owned']
+                highvalue = matched_object['row'][0]['highvalue']
+                output_objects.append([name, owned, highvalue])
+                verbose_print(f'{ARGS.outdelim}'.join(map(str, [name, owned, highvalue])))
+            if ARGS.outputfile:
                 output.write_output(ARGS.outputfile, headers, output_objects, ARGS.outdelim)
+                print(f"[i] Output file written to {ARGS.outputfile}")
 
         except Exception as err:
             print(f'[!] {err}')
@@ -83,11 +90,13 @@ def main():
             for col in ARGS.col:
                 converted = epochconvert.epoch_convert(input_objects, col, date_format)
 
+            print(f'{ARGS.outdelim}'.join(map(str, HEADERS)))
+            for row in converted:
+                print(f'{ARGS.outdelim}'.join(map(str, row)))
+
             if ARGS.outputfile:
                 output.write_output(ARGS.outputfile, HEADERS, converted, ARGS.outdelim)
-                print(f"[i] Output file written to {ARGS.outfile}")
-
-            # TODO: do something witih output if not writing to file
+                print(f"[i] Output file written to {ARGS.outputfile}")
 
         except ValueError as err:
             print(f'[!] Input file is incorrectly formatted - {err}')
@@ -108,20 +117,24 @@ def main():
             matched_objects = resp.json()['results'][0]['data']
             print(f'[i] Query returned {len(matched_objects)} object(s)')
 
-            # # TODO: reuse existing epoch conversion code to convert back to human readable
-            # for matched_object in matched_objects:
-            #     epochtime = matched_object['row'][0][field]
-            #     human_time = datetime.fromtimestamp(epochtime).strftime(date_format)
-            #     current_time = datetime.now().strftime(date_format)
-            #     delta = (datetime.strptime(current_time, date_format) - datetime.strptime(human_time, date_format)).days
-            #     name = matched_object['row'][0]['name']
+            output_objects = list()
+            headers = ['Name', field, 'Delta (days)']
+            verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
+            for matched_object in matched_objects:
+                # TODO: resuse epoch convert code here
 
-        #         CSV_WRITER.writerow([name, human_time, delta])
+                epochtime = matched_object['row'][0][field]
+                human_time = datetime.fromtimestamp(epochtime).strftime(date_format)
+                current_time = datetime.now().strftime(date_format)
+                delta = (datetime.strptime(current_time, date_format) - datetime.strptime(human_time, date_format)).days
+                name = matched_object['row'][0]['name']
 
-        # output_csv_file.close()
-        # print(f"[i] Output file written to {ARGS.outfile}")
+                output_objects.append([name, human_time, delta])
+                verbose_print(f'{ARGS.outdelim}'.join(map(str, [name, human_time, delta])))
 
-            # TODO: add output to CSV here
+            if ARGS.outputfile:
+                output.write_output(ARGS.outputfile, headers, output_objects, ARGS.outdelim)
+                print(f"[i] Output file written to {ARGS.outputfile}")
 
         except Exception as err:
             print(f'[!] {err}')
