@@ -29,6 +29,7 @@ PARSER.add_argument('--indelim', '-id', type=str, default=',', help='Output file
 PARSER.add_argument('--outdelim', '-od', type=str, default=',', help='Output file delimiter (default: %(default)s)')
 PARSER.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
 
+PARSER.add_argument('--noheaders', '-nh', action='store_true', help='Prevent header row from being written to screen')
 PARSER.add_argument('--timeout', '-t', type=int, default=30, help='HTTP request timeout')
 PARSER.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity')
 
@@ -72,7 +73,8 @@ def main():
 
             output_objects = list()
             headers = ['Name', 'Owned', 'Highvalue']
-            verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
+            if not ARGS.noheaders:
+                verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
             for matched_object in matched_objects:
                 name = matched_object['row'][0]['name']
                 owned = matched_object['row'][0]['owned']
@@ -125,7 +127,8 @@ def main():
 
             output_objects = list()
             headers = ['Name', field, 'Delta (days)']
-            verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
+            if not ARGS.noheaders:
+                verbose_print(f'{ARGS.outdelim}'.join(map(str, headers)))
             for matched_object in matched_objects:
                 # TODO: resuse epoch convert code here
 

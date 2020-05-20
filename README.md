@@ -81,6 +81,11 @@ Use in conjunction with `--outputfile` to specify the file delimiter to use (def
 
 *if you want to use tab as a delimiter you have to specify it as `-outdelim $'\t'`*
 
+`--noheaders / -nh`
+
+Prevent header row from being written to screen when using `--verbose`
+
+
 `--timeout / -t`
 
 Timeout for HTTP requests to Neo4j (defaults to 30 seconds)
