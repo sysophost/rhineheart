@@ -114,7 +114,6 @@ def main():
         try:
             conn = db.db_init(ARGS.dbhost, ARGS.dbport, ARGS.username, ARGS.password, ARGS.timeout)
 
-            field = ''
             if ARGS.findold == 'logon':
                 field = 'lastlogontimestamp'
             elif ARGS.findold == 'password':
