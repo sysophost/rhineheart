@@ -10,26 +10,32 @@ from modules import (data, db, epochconvert, findold, formatting, markobjects,
 PARSER = argparse.ArgumentParser()
 
 # DB connection args
-PARSER.add_argument('--dbhost', '-dh', type=str, default='127.0.0.1', help='IP address or hostname where Neo4J is running (default: %(default)s)')
-PARSER.add_argument('--dbport', '-dp', type=int, default='7474', help='Neo4J listen port (default: %(default)s)')
-PARSER.add_argument('--username', '-u', type=str, default='neo4j', help='Neo4J username (default: %(default)s)')
-PARSER.add_argument('--password', '-p', type=str, default='Pa55w0rd', help='Neo4J password (default: %(default)s)')
+DB_GROUP = PARSER.add_argument_group('Database')
+DB_GROUP.add_argument('--dbhost', '-dh', type=str, default='127.0.0.1', help='IP address or hostname where Neo4J is running (default: %(default)s)')
+DB_GROUP.add_argument('--dbport', '-dp', type=int, default='7474', help='Neo4J listen port (default: %(default)s)')
+DB_GROUP.add_argument('--username', '-u', type=str, default='neo4j', help='Neo4J username (default: %(default)s)')
+DB_GROUP.add_argument('--password', '-p', type=str, default='Pa55w0rd', help='Neo4J password (default: %(default)s)')
 
 # Workflows
-PARSER.add_argument('--markobjects', '-mo', choices=['owned', 'highvalue', 'both'], help='Mark supplied objects as owned, highvalue, or both')
-PARSER.add_argument('--epochconvert', '-ec', action='store_true', help='Convert epoch timestamps in input file to human readable date/time')
-PARSER.add_argument('--col', '-c', type=int, action='append', required='--epochconvert' in sys.argv or '-ec' in sys.argv, help='Column index with epoch timestamps (can be supplied multiple times)')
-PARSER.add_argument('--findold', '-fo', choices=['logon', 'password'], help='Search for users with password last set or last logon older than X days')
-PARSER.add_argument('--days', '-d', type=int, required='--findold' in sys.argv or '-fo' in sys.argv, help='Number of days since last logon or password change')
+CMD_GROUP = PARSER.add_argument_group('Commands')
+CMD_GROUP.add_argument('--markobjects', '-mo', choices=['owned', 'highvalue', 'both'], help='Mark supplied objects as owned, highvalue, or both')
+CMD_GROUP.add_argument('--epochconvert', '-ec', action='store_true', help='Convert epoch timestamps in input file to human readable date/time')
+CMD_GROUP.add_argument('--findold', '-fo', choices=['logon', 'password'], help='Search for users with password last set or last logon older than X days')
+
+CMDF_GROUP = PARSER.add_argument_group('Command Filters')
+CMDF_GROUP.add_argument('--col', '-c', type=int, action='append', required='--epochconvert' in sys.argv or '-ec' in sys.argv,
+                        help='Column index with epoch timestamps (can be supplied multiple times)')
+CMDF_GROUP.add_argument('--days', '-d', type=int, required='--findold' in sys.argv or '-fo' in sys.argv, help='Number of days since last logon or password change')
 
 # Input/output formatting args
-PARSER.add_argument('--inputfile', '-if', type=str, required='--markobjects' in sys.argv or '-mo' in sys.argv or '--epochconvert' in sys.argv or '-ec' in sys.argv, help='Path to input file')
-PARSER.add_argument('--outputfile', '-of', type=str, help='Path to output file')
-PARSER.add_argument('--indelim', '-id', type=str, default=',', help='Output file delimiter (default: %(default)s)')
-PARSER.add_argument('--outdelim', '-od', type=str, default=',', help='Output file delimiter (default: %(default)s)')
-PARSER.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
+IO_GROUP = PARSER.add_argument_group('IO')
+IO_GROUP.add_argument('--inputfile', '-if', type=str, required='--markobjects' in sys.argv or '-mo' in sys.argv or '--epochconvert' in sys.argv or '-ec' in sys.argv, help='Path to input file')
+IO_GROUP.add_argument('--outputfile', '-of', type=str, help='Path to output file')
+IO_GROUP.add_argument('--indelim', '-id', type=str, default=',', help='Output file delimiter (default: %(default)s)')
+IO_GROUP.add_argument('--outdelim', '-od', type=str, default=',', help='Output file delimiter (default: %(default)s)')
+IO_GROUP.add_argument('--dateformat', '-df', choices=['short', 'us', 'usshort'], default='%H:%M:%S %d/%m/%Y', help='Output date format (default: %(default)s)')
+IO_GROUP.add_argument('--noheaders', '-nh', action='store_true', help='Prevent header row from being written to screen')
 
-PARSER.add_argument('--noheaders', '-nh', action='store_true', help='Prevent header row from being written to screen')
 PARSER.add_argument('--timeout', '-t', type=int, default=30, help='HTTP request timeout')
 PARSER.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity')
 
