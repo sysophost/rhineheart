@@ -4,7 +4,7 @@ import logging
 from requests import sessions
 
 
-def db_init(dbhost: str, dbport: int, username: str, password: str, timeout: int) -> requests.sessions.Session:
+def db_init(dbhost: str, dbport: int, username: str, password: str, timeout: int) -> sessions.Session:
     """
     Initialise the request session to the neo4j DB
 
@@ -43,7 +43,7 @@ def db_init(dbhost: str, dbport: int, username: str, password: str, timeout: int
         raise err
 
 
-def construct_connection(url: str, headers: str, timeout: int) -> requests.sessions.Session:
+def construct_connection(url: str, headers: str, timeout: int) -> sessions.Session:
     """
     Creates a requests.session.Session() object with a handle to the neo4j DB
 
