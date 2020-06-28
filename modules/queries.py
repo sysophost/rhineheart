@@ -47,15 +47,14 @@ def construct_update_query(input_objects: list, flag: str) -> str:
         str -- the complete query string, including the supplied objects and the relevant attribute to mark true
     """
 
-    if flag == 'both':
-        query_action = 'n.owned=TRUE, n.highvalue=TRUE'
-    elif flag == 'owned':
-        query_action = 'n.owned=TRUE'
-    elif flag == 'highvalue':
-        query_action = 'n.highvalue=TRUE'
+    actions = {
+        'both': 'n.owned=TRUE, n.highvalue=TRUE',
+        'owned': 'n.owned=TRUE',
+        'highvalue': 'n.highvalue=TRUE'
+    }
 
     query = {
-        'statements': [{'statement': f'MATCH (n) WHERE n.name IN {input_objects} SET {query_action} RETURN n'}]
+        'statements': [{'statement': f'MATCH (n) WHERE n.name IN {input_objects} SET {actions[flag]} RETURN n'}]
     }
 
     return query
